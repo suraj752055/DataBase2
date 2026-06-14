@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FPS Game</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: #000;
+            position: relative;
+        }
+        canvas {
+            display: block;
+        }
+        #ammoDisplay {
+            position: absolute;
+            right: 20px;
+            bottom: 20px;
+            color: #fff;
+            font-family: Arial, sans-serif;
+            font-size: 18px;
+            text-shadow: 0 0 8px rgba(0,0,0,0.9);
+            z-index: 3;
+        }
+        #waveDisplay {
+            position: absolute;
+            left: 20px;
+            top: 20px;
+            color: #fff;
+            font-family: Arial, sans-serif;
+            font-size: 24px;
+            font-weight: bold;
+            text-shadow: 0 0 8px rgba(0,0,0,0.9);
+            z-index: 3;
+        }
+        #scoreDisplay {
+            position: absolute;
+            right: 20px;
+            top: 20px;
+            color: #fff;
+            font-family: Arial, sans-serif;
+            font-size: 24px;
+            font-weight: bold;
+            text-shadow: 0 0 8px rgba(0,0,0,0.9);
+            z-index: 3;
+        }
+        #killCountDisplay {
+            position: absolute;
+            right: 20px;
+            top: 56px;
+            color: #fff;
+            font-family: Arial, sans-serif;
+            font-size: 18px;
+            text-shadow: 0 0 8px rgba(0,0,0,0.9);
+            z-index: 3;
+        }
+        #crosshair {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 20px;
+            height: 20px;
+            margin-left: -10px;
+            margin-top: -10px;
+            pointer-events: none;
+            z-index: 3;
+        }
+        #crosshair::before, #crosshair::after {
+            content: '';
+            position: absolute;
+            background: #fff;
+        }
+        #crosshair::before {
+            left: 50%;
+            top: 0;
+            width: 2px;
+            height: 100%;
+            transform: translateX(-50%);
+        }
+        #crosshair::after {
+            top: 50%;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            transform: translateY(-50%);
+        }
+        #killScreen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+        #killScreen.active {
+            display: flex;
+        }
+        #killReason {
+            color: #ff0000;
+            font-family: Arial, sans-serif;
+            font-size: 48px;
+            font-weight: bold;
+            text-shadow: 0 0 20px rgba(255,0,0,0.8);
+            margin-bottom: 30px;
+        }
+        #restartButton {
+            color: #fff;
+            font-family: Arial, sans-serif;
+            font-size: 24px;
+            padding: 20px 50px;
+            background: #ff0000;
+            border: none;
+            cursor: pointer;
+            border-radius: 5px;
+            transition: all 0.3s;
+        }
+        #restartButton:hover {
+            background: #cc0000;
+            box-shadow: 0 0 20px rgba(255,0,0,0.8);
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas"></canvas>
+    <div id="waveDisplay">Wave: 1</div>
+    <div id="scoreDisplay">Score: 0</div>
+    <div id="killCountDisplay">Kills: 0</div>
+    <div id="ammoDisplay">Ammo: <span id="ammoCount">20</span></div>
+    <div id="autoFireDisplay" style="position: absolute; top: 50px; left: 20px; color: #00ffff; font-family: Arial, sans-serif; font-size: 18px; text-shadow: 0 0 8px rgba(0,255,255,0.9); z-index: 3;">Auto-fire delay: 200ms</div>
+    <div id="invincibilityDisplay" style="position: absolute; top: 90px; left: 20px; color: #00ff00; font-family: Arial, sans-serif; font-size: 18px; text-shadow: 0 0 8px rgba(0,255,0,0.9); z-index: 3;">Invincibility: 5s</div>
+    <div id="crosshair"></div>
+    <div id="killScreen">
+        <div id="killReason">You were killed!</div>
+        <button id="restartButton">RESTART</button>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        // Basic Three.js setup for FPS game
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('gameCanvas') });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+
+
+
+        // Add varied terrain with HIGHLY DETAILED textures
+        // GRASS ground - detailed with multiple layers
+        const groundGeometry = new THREE.PlaneGeometry(100, 100);
+        const grassCanvas = document.createElement('canvas');
+        grassCanvas.width = 512; grassCanvas.height = 512;
+        const grassCtx = grassCanvas.getContext('2d');
+        // Base grass color with noise
+        grassCtx.fillStyle = '#1a7a1a';
+        grassCtx.fillRect(0, 0, 512, 512);
+        // Multiple layers of grass detail
+        for (let layer = 0; layer < 5; layer++) {
+            for (let i = 0; i < 500; i++) {
+                const x = Math.random() * 512;
+                const y = Math.random() * 512;
+                const baseGreen = 100 + Math.random() * 80;
+                grassCtx.fillStyle = `rgba(20, ${baseGreen}, 20, ${0.2 + Math.random() * 0.5})`;
+                grassCtx.fillRect(x, y, 2 + Math.random() * 6, 2 + Math.random() * 6);
+            }
+        }
+        // Grass blade details
+        for (let i = 0; i < 1000; i++) {
+            grassCtx.strokeStyle = `rgba(50, ${150 + Math.random() * 50}, 50, ${0.3 + Math.random() * 0.4})`;
+            grassCtx.lineWidth = 0.5 + Math.random();
+            grassCtx.beginPath();
+            const x = Math.random() * 512;
+            const y = Math.random() * 512;
+            grassCtx.moveTo(x, y);
+            grassCtx.lineTo(x + Math.random() * 2 - 1, y + 3 + Math.random() * 2);
+            grassCtx.stroke();
+        }
+        // Shadow spots
+        for (let i = 0; i < 400; i++) {
+            grassCtx.fillStyle = `rgba(0, 30, 0, ${0.1 + Math.random() * 0.2})`;
+            grassCtx.beginPath();
+            grassCtx.arc(Math.random() * 512, Math.random() * 512, 3 + Math.random() * 8, 0, Math.PI * 2);
+            grassCtx.fill();
+        }
+        const grassTexture = new THREE.CanvasTexture(grassCanvas);
+        grassTexture.magFilter = THREE.LinearFilter;
+        grassTexture.repeat.set(1 + Math.floor(Math.random() * 3), 1 + Math.floor(Math.random() * 3));
+        const groundMaterial = new THREE.MeshBasicMaterial({ map: grassTexture });
+        const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+        ground.rotation.x = -Math.PI / 2;
+        scene.add(ground);
+
+        // WATER area - detailed with animated patterns (random patches)
+        const waterCanvas = document.createElement('canvas');
+        waterCanvas.width = 512; waterCanvas.height = 512;
+        const waterCtx = waterCanvas.getContext('2d');
+        // Base water with gradient
+        const waterGradient = waterCtx.createLinearGradient(0, 0, 512, 512);
+        waterGradient.addColorStop(0, '#0a3a6b');
+        waterGradient.addColorStop(0.5, '#1a5a9b');
+        waterGradient.addColorStop(1, '#0a3a6b');
+        waterCtx.fillStyle = waterGradient;
+        waterCtx.fillRect(0, 0, 512, 512);
+        // Water waves detail
+        for (let i = 0; i < 200; i++) {
+            waterCtx.strokeStyle = `rgba(100, 180, 255, ${0.15 + Math.random() * 0.25})`;
+            waterCtx.lineWidth = 0.5 + Math.random() * 1.5;
+            waterCtx.beginPath();
+            const x = Math.random() * 512;
+            const y = Math.random() * 512;
+            waterCtx.arc(x, y, 10 + Math.random() * 30, 0, Math.PI * 2);
+            waterCtx.stroke();
+        }
+        // Water light reflections
+        for (let i = 0; i < 300; i++) {
+            waterCtx.fillStyle = `rgba(150, 220, 255, ${0.1 + Math.random() * 0.15})`;
+            waterCtx.fillRect(Math.random() * 512, Math.random() * 512, 1 + Math.random() * 3, 5 + Math.random() * 8);
+        }
+        const waterTexture = new THREE.CanvasTexture(waterCanvas);
+        waterTexture.magFilter = THREE.LinearFilter;
+        // Create several random water patches
+        const waterPatchCount = 1 + Math.floor(Math.random() * 3);
+        for (let wp = 0; wp < waterPatchCount; wp++) {
+            const size = 8 + Math.random() * 30;
+            const waterGeometry = new THREE.PlaneGeometry(size, size);
+            const waterMaterial = new THREE.MeshBasicMaterial({ map: waterTexture.clone() });
+            const water = new THREE.Mesh(waterGeometry, waterMaterial);
+            water.rotation.x = -Math.PI / 2;
+            water.position.set(Math.random() * 80 - 40, 0.01, Math.random() * 80 - 40);
+            scene.add(water);
+        }
+
+        // DIRT area - detailed with rocks and soil (random patches)
+        const dirtCanvas = document.createElement('canvas');
+        dirtCanvas.width = 512; dirtCanvas.height = 512;
+        const dirtCtx = dirtCanvas.getContext('2d');
+        // Base dirt
+        dirtCtx.fillStyle = '#654321';
+        dirtCtx.fillRect(0, 0, 512, 512);
+        // Soil texture layers
+        for (let layer = 0; layer < 6; layer++) {
+            for (let i = 0; i < 800; i++) {
+                const x = Math.random() * 512;
+                const y = Math.random() * 512;
+                const color = 80 + Math.random() * 80;
+                const colorMod = Math.random() * 40;
+                dirtCtx.fillStyle = `rgba(${color + colorMod}, ${color / 2 + colorMod / 2}, ${color / 4 + colorMod / 4}, ${0.2 + Math.random() * 0.4})`;
+                dirtCtx.fillRect(x, y, 1 + Math.random() * 5, 1 + Math.random() * 5);
+            }
+        }
+        // Rock details
+        for (let i = 0; i < 200; i++) {
+            const x = Math.random() * 512;
+            const y = Math.random() * 512;
+            const size = 5 + Math.random() * 15;
+            dirtCtx.fillStyle = `rgba(50, 40, 30, ${0.3 + Math.random() * 0.4})`;
+            dirtCtx.beginPath();
+            dirtCtx.arc(x, y, size, 0, Math.PI * 2);
+            dirtCtx.fill();
+            dirtCtx.strokeStyle = `rgba(30, 20, 10, 0.5)`;
+            dirtCtx.lineWidth = 1;
+            dirtCtx.stroke();
+        }
+        // Cracks and shadows
+        for (let i = 0; i < 300; i++) {
+            dirtCtx.strokeStyle = `rgba(0, 0, 0, ${0.1 + Math.random() * 0.15})`;
+            dirtCtx.lineWidth = 0.5 + Math.random();
+            dirtCtx.beginPath();
+            const x = Math.random() * 512;
+            const y = Math.random() * 512;
+            dirtCtx.moveTo(x, y);
+            dirtCtx.lineTo(x + (Math.random() - 0.5) * 30, y + (Math.random() - 0.5) * 30);
+            dirtCtx.stroke();
+        }
+        const dirtTexture = new THREE.CanvasTexture(dirtCanvas);
+        dirtTexture.magFilter = THREE.LinearFilter;
+        // Create several random dirt patches
+        const dirtPatchCount = 1 + Math.floor(Math.random() * 3);
+        for (let dp = 0; dp < dirtPatchCount; dp++) {
+            const size = 8 + Math.random() * 25;
+            const dirtGeometry = new THREE.PlaneGeometry(size, size);
+            const dirtMaterial = new THREE.MeshBasicMaterial({ map: dirtTexture.clone() });
+            const dirt = new THREE.Mesh(dirtGeometry, dirtMaterial);
+            dirt.rotation.x = -Math.PI / 2;
+            dirt.position.set(Math.random() * 80 - 40, 0.01, Math.random() * 80 - 40);
+            scene.add(dirt);
+        }
+
+        // Create texture generator functions
+        const collidables = [];
+        
+        function createStoneTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 256;
+            canvas.height = 256;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#7a7a7a';
+            ctx.fillRect(0, 0, 256, 256);
+            ctx.strokeStyle = '#5a5a5a';
+            ctx.lineWidth = 2;
+            for (let y = 0; y < 256; y += 32) {
+                for (let x = 0; x < 256; x += 32) {
+                    ctx.strokeRect(x, y, 32, 32);
+                }
+            }
+            for (let i = 0; i < 600; i++) {
+                ctx.fillStyle = `rgba(${100 + Math.random() * 100}, ${100 + Math.random() * 100}, ${100 + Math.random() * 100}, ${0.2 + Math.random() * 0.3})`;
+                ctx.fillRect(Math.random() * 256, Math.random() * 256, 1 + Math.random() * 3, 1 + Math.random() * 3);
+            }
+            for (let i = 0; i < 400; i++) {
+                ctx.fillStyle = `rgba(0, 0, 0, ${0.05 + Math.random() * 0.15})`;
+                ctx.fillRect(Math.random() * 256, Math.random() * 256, 2 + Math.random() * 4, 2 + Math.random() * 4);
+            }
+            return new THREE.CanvasTexture(canvas);
+        }
+        
+        function createBarkTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 256;
+            canvas.height = 256;
+            const ctx = canvas.getContext('2d');
+            const baseColor = 80 + Math.random() * 40;
+            ctx.fillStyle = `rgb(${baseColor}, ${baseColor - 20}, ${baseColor - 40})`;
+            ctx.fillRect(0, 0, 256, 256);
+            for (let i = 0; i < 1200; i++) {
+                const x = Math.random() * 256;
+                const y = Math.random() * 256;
+                const color = baseColor + Math.random() * 80 - 40;
+                ctx.fillStyle = `rgba(${Math.max(0, color)}, ${Math.max(0, color - 20)}, ${Math.max(0, color - 40)}, ${0.3 + Math.random() * 0.3})`;
+                ctx.fillRect(x, y, 1 + Math.random() * 2, 1 + Math.random() * 3);
+            }
+            for (let i = 0; i < 300; i++) {
+                ctx.strokeStyle = `rgba(30, 15, 5, ${0.3 + Math.random() * 0.3})`;
+                ctx.lineWidth = 0.5 + Math.random() * 1.5;
+                ctx.beginPath();
+                const x = Math.random() * 256;
+                const y = Math.random() * 256;
+                ctx.moveTo(x, y);
+                ctx.lineTo(x + (Math.random() - 0.5) * 40, y + 10 + Math.random() * 20);
+                ctx.stroke();
+            }
+            return new THREE.CanvasTexture(canvas);
+        }
+        
+        function createRandomRockTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 256;
+            canvas.height = 256;
+            const ctx = canvas.getContext('2d');
+            const baseColor = 100 + Math.random() * 50;
+            ctx.fillStyle = `rgb(${baseColor}, ${baseColor + 20}, ${baseColor - 20})`;
+            ctx.fillRect(0, 0, 256, 256);
+            for (let j = 0; j < 800; j++) {
+                const r = baseColor + Math.random() * 60 - 30;
+                const g = baseColor + 20 + Math.random() * 60 - 30;
+                const b = baseColor - 20 + Math.random() * 60 - 30;
+                ctx.fillStyle = `rgba(${Math.max(0, r)}, ${Math.max(0, g)}, ${Math.max(0, b)}, ${0.3 + Math.random() * 0.3})`;
+                ctx.fillRect(Math.random() * 256, Math.random() * 256, 2 + Math.random() * 4, 2 + Math.random() * 4);
+            }
+            for (let j = 0; j < 150; j++) {
+                ctx.fillStyle = `rgba(50, ${100 + Math.random() * 80}, 50, ${0.2 + Math.random() * 0.3})`;
+                ctx.beginPath();
+                ctx.arc(Math.random() * 256, Math.random() * 256, 3 + Math.random() * 8, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            return new THREE.CanvasTexture(canvas);
+        }
+        
+        // CLIMB`ABLE BLOCK TOWER in center (randomized center)
+        const stoneTexture = createStoneTexture();
+        stoneTexture.magFilter = THREE.LinearFilter;
+        const towerCenterX = Math.random() * 20 - 10;
+        const towerCenterZ = Math.random() * 20 - 10;
+        for (let i = 0; i < 5; i++) {
+            const blockGeometry = new THREE.BoxGeometry(4, 1.5, 4);
+            const blockMaterial = new THREE.MeshBasicMaterial({ map: stoneTexture.clone() });
+            const block = new THREE.Mesh(blockGeometry, blockMaterial);
+            block.position.set(towerCenterX, 1.5 + i * 1.5, towerCenterZ);
+            block.userData.width = 4;
+            block.userData.depth = 4;
+            block.userData.isClimbable = true;
+            scene.add(block);
+            collidables.push(block);
+        }
+
+        // Add hills with detailed textures and climbable blocks nearby (random count)
+        const hillPositions = [];
+        const hillCount = 5 + Math.floor(Math.random() * 10);
+        for (let i = 0; i < hillCount; i++) {
+            const hillGeometry = new THREE.BoxGeometry(5 + Math.random() * 5, 1 + Math.random() * 2, 5 + Math.random() * 5);
+            const hillMaterial = new THREE.MeshBasicMaterial({ map: createRandomRockTexture() });
+            const hill = new THREE.Mesh(hillGeometry, hillMaterial);
+            const hillX = Math.random() * 80 - 40;
+            const hillY = hillGeometry.parameters.height / 2;
+            const hillZ = Math.random() * 80 - 40;
+            hill.position.set(hillX, hillY, hillZ);
+            hill.userData.width = hillGeometry.parameters.width;
+            hill.userData.depth = hillGeometry.parameters.depth;
+            scene.add(hill);
+            collidables.push(hill);
+            hillPositions.push({ x: hillX, y: hillY, z: hillZ, width: hillGeometry.parameters.width, depth: hillGeometry.parameters.depth });
+        }
+        
+        // Add climbable blocks near each hill
+        const stoneStairTexture = createStoneTexture();
+        stoneStairTexture.magFilter = THREE.LinearFilter;
+        for (let hillPos of hillPositions) {
+            const distanceFromHill = 6;
+            const angles = [0, Math.PI / 2, Math.PI, (3 * Math.PI) / 2];
+            
+            for (let angle of angles) {
+                const blockX = hillPos.x + Math.cos(angle) * distanceFromHill;
+                const blockZ = hillPos.z + Math.sin(angle) * distanceFromHill;
+                
+                // Create 3 stepping stones
+                for (let step = 0; step < 3; step++) {
+                    const blockGeometry = new THREE.BoxGeometry(2, 0.8, 2);
+                    const blockMaterial = new THREE.MeshBasicMaterial({ map: stoneStairTexture.clone() });
+                    const block = new THREE.Mesh(blockGeometry, blockMaterial);
+                    block.position.set(blockX, 0.4 + step * 0.9, blockZ);
+                    block.userData.width = 2;
+                    block.userData.depth = 2;
+                    block.userData.isClimbable = true;
+                    scene.add(block);
+                    collidables.push(block);
+                }
+            }
+        }
+
+        // Add trees with bark texture
+        const barkTexture = createBarkTexture();
+        barkTexture.magFilter = THREE.LinearFilter;
+        const treeCount = 30 + Math.floor(Math.random() * 70);
+        for (let i = 0; i < treeCount; i++) {
+            const height = 3 + Math.random() * 4;
+            const treeGeometry = new THREE.BoxGeometry(0.5 + Math.random() * 1, height, 0.5 + Math.random() * 1);
+            const treeMaterial = new THREE.MeshBasicMaterial({ map: barkTexture.clone() });
+            const tree = new THREE.Mesh(treeGeometry, treeMaterial);
+            tree.position.set(Math.random() * 80 - 40, height / 2, Math.random() * 80 - 40);
+            tree.userData.width = treeGeometry.parameters.width;
+            tree.userData.depth = treeGeometry.parameters.depth;
+            scene.add(tree);
+            collidables.push(tree);
+        }
+
+        camera.position.set(0, 1.6, 5);
+        window.scene = scene;
+        window.camera = camera;
+        window.renderer = renderer;
+        window.collidables = collidables;
+        // Ensure camera-attached objects render and orient camera for debugging
+        try {
+            scene.add(camera);
+            camera.lookAt(new THREE.Vector3(0, 1.2, 0));
+        } catch (e) {
+            console.warn('Could not add camera to scene or lookAt failed', e);
+        }
+
+        // Debug info: log camera and collidables
+        console.log('DEBUG: camera position', camera.position);
+        console.log('DEBUG: collidables count', collidables.length);
+
+        // Add a visible white debug cube 5 units in front of the camera
+        try {
+            const debugGeo = new THREE.BoxGeometry(1, 1, 1);
+            const debugMat = new THREE.MeshBasicMaterial({ color: 0xFFFFFF });
+            const debugBox = new THREE.Mesh(debugGeo, debugMat);
+            const forward = new THREE.Vector3();
+            camera.getWorldDirection(forward);
+            debugBox.position.copy(camera.position).add(forward.multiplyScalar(5));
+            scene.add(debugBox);
+            // Expose debugBox for console inspection
+            window._debugBox = debugBox;
+        } catch (e) {
+            console.warn('Failed to add debug box', e);
+        }
+        
+        // Improved collision detection with sliding and climbing
+        // Improved AABB (bounding box) collision detection
+        function checkCollision(position, radius) {
+            for (let obj of collidables) {
+                // Get object dimensions
+                const objWidth = obj.userData.width || 1;
+                const objDepth = obj.userData.depth || 1;
+                const objHeight = 2; // Assumed height
+                
+                // Player bounding box
+                const playerMinX = position.x - radius;
+                const playerMaxX = position.x + radius;
+                const playerMinZ = position.z - radius;
+                const playerMaxZ = position.z + radius;
+                const playerMinY = position.y - 1.6;
+                const playerMaxY = position.y + 0.4;
+                
+                // Object bounding box
+                const objMinX = obj.position.x - objWidth / 2;
+                const objMaxX = obj.position.x + objWidth / 2;
+                const objMinZ = obj.position.z - objDepth / 2;
+                const objMaxZ = obj.position.z + objDepth / 2;
+                const objMinY = obj.position.y - objHeight / 2;
+                const objMaxY = obj.position.y + objHeight / 2;
+                
+                // AABB collision check
+                const colliding = playerMaxX > objMinX && playerMinX < objMaxX &&
+                                playerMaxZ > objMinZ && playerMinZ < objMaxZ &&
+                                playerMaxY > objMinY && playerMinY < objMaxY;
+                
+                if (colliding) {
+                    return obj;
+                }
+            }
+            return false;
+        }
+        
+        window.checkCollision = checkCollision;
+
+        // Delay player and enemy logic to external files.
+    </script>
+    <script src="player.js"></script>
+    <script src="enemy.js"></script>
+    <script>
+        function animate() {
+            requestAnimationFrame(animate);
+            if (typeof updateEnemies === 'function') {
+                try {
+                    updateEnemies();
+                } catch (e) {
+                    console.error('updateEnemies() threw an error:', e);
+                }
+            } else {
+                console.warn('updateEnemies is not defined — enemy.js may have failed to load or errored.');
+            }
+
+            if (typeof updatePlayer === 'function') {
+                try {
+                    updatePlayer();
+                } catch (e) {
+                    console.error('updatePlayer() threw an error:', e);
+                }
+            } else {
+                console.warn('updatePlayer is not defined — player.js may have failed to load or errored.');
+            }
+
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        // Global error listener to surface script load/runtime errors
+        window.addEventListener('error', (ev) => {
+            console.error('Global error event:', ev.message || ev.error || ev);
+        });
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // Restart button functionality
+        document.getElementById('restartButton').addEventListener('click', () => {
+            location.reload();
+        });
+    </script>
+</body>
+</html>

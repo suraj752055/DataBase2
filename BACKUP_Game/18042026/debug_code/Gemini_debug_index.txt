@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FPS Game</title>
+    <style>
+        body { margin: 0; overflow: hidden; background: #000; font-family: Arial, sans-serif; }
+        canvas { display: block; }
+        .ui { position: absolute; color: white; text-shadow: 2px 2px 4px #000; pointer-events: none; z-index: 10; }
+        #waveDisplay { left: 20px; top: 20px; font-size: 24px; font-weight: bold; }
+        #scoreDisplay { right: 20px; top: 20px; font-size: 24px; }
+        #ammoDisplay { right: 20px; bottom: 20px; font-size: 20px; }
+        #crosshair {
+            position: absolute; top: 50%; left: 50%; width: 20px; height: 20px;
+            margin: -10px 0 0 -10px; border: 2px solid white; border-radius: 50%;
+        }
+        #killScreen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8); display: none; flex-direction: column;
+            justify-content: center; align-items: center; z-index: 100;
+        }
+        #restartButton {
+            padding: 15px 30px; font-size: 20px; background: red; color: white;
+            border: none; cursor: pointer; pointer-events: auto;
+        }
+    </style>
+</head>
+<body>
+    <div id="waveDisplay" class="ui">Wave: 1</div>
+    <div id="scoreDisplay" class="ui">Score: 0</div>
+    <div id="ammoDisplay" class="ui">Ammo: <span id="ammoCount">20</span></div>
+    <div id="crosshair"></div>
+    <div id="killScreen">
+        <h1 style="color:red; font-size: 48px;">YOU DIED</h1>
+        <button id="restartButton">RESTART</button>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        // Global Scene Setup
+        window.scene = new THREE.Scene();
+        window.camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+        window.renderer = new THREE.WebGLRenderer({ antialias: true });
+        window.renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(window.renderer.domElement);
+
+        window.enemies = [];
+        window.gameOver = false;
+        window.score = 0;
+
+        // Lighting
+        window.scene.add(new THREE.AmbientLight(0xffffff, 0.7));
+        const sun = new THREE.DirectionalLight(0xffffff, 0.5);
+        sun.position.set(5, 10, 5);
+        window.scene.add(sun);
+
+        // Ground
+        const ground = new THREE.Mesh(
+            new THREE.PlaneGeometry(100, 100),
+            new THREE.MeshPhongMaterial({ color: 0x222222 })
+        );
+        ground.rotation.x = -Math.PI / 2;
+        window.scene.add(ground);
+
+        window.addEventListener('resize', () => {
+            window.camera.aspect = window.innerWidth / window.innerHeight;
+            window.camera.updateProjectionMatrix();
+            window.renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        document.getElementById('restartButton').onclick = () => location.reload();
+    </script>
+    <script src="player.js"></script>
+    <script src="enemy.js"></script>
+    <script>
+        function animate() {
+            requestAnimationFrame(animate);
+            if (!window.gameOver) {
+                if (typeof updatePlayer === 'function') updatePlayer();
+                if (typeof updateEnemies === 'function') updateEnemies();
+            }
+            window.renderer.render(window.scene, window.camera);
+        }
+        animate();
+    </script>
+</body>
+</html>

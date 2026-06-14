@@ -1,0 +1,136 @@
+// player.js - Controls and Combat
+const bullets = [];
+const ammoPickups = [];
+let ammo = 20;
+const bulletSpeed = 1.2;
+const bulletLife = 120;
+const AUTO_FIRE_DELAY_MS = 200;
+let lastAutoFireTime = 0;
+let isFiring = false;
+window.gameOver = false;
+
+const ammoCount = document.getElementById('ammoCount');
+const keys = {};
+const euler = new THREE.Euler(0, 0, 0, 'YXZ');
+
+// 1. Shooting Logic
+function shootBullet() {
+    if (ammo <= 0 || window.gameOver) return;
+    ammo--;
+    if (ammoCount) ammoCount.textContent = ammo;
+
+    const bGeo = new THREE.SphereGeometry(0.1, 8, 8);
+    const bMat = new THREE.MeshBasicMaterial({ color: 0xFFFF00 });
+    const bullet = new THREE.Mesh(bGeo, bMat);
+    
+    const direction = new THREE.Vector3();
+    camera.getWorldDirection(direction);
+    
+    bullet.position.copy(camera.position);
+    bullet.userData = { direction: direction.clone(), life: bulletLife };
+    
+    scene.add(bullet);
+    bullets.push(bullet);
+}
+
+// 2. Input Setup
+document.addEventListener('keydown', (e) => keys[e.code] = true);
+document.addEventListener('keyup', (e) => keys[e.code] = false);
+document.addEventListener('mousemove', (e) => {
+    if (document.pointerLockElement) {
+        euler.setFromQuaternion(camera.quaternion);
+        euler.y -= e.movementX * 0.002;
+        euler.x -= e.movementY * 0.002;
+        euler.x = Math.max(-Math.PI/2, Math.min(Math.PI/2, euler.x));
+        camera.quaternion.setFromEuler(euler);
+    }
+});
+document.addEventListener('mousedown', () => {
+    if (!document.pointerLockElement) {
+        renderer.domElement.requestPointerLock();
+    } else {
+        isFiring = true;
+        shootBullet();
+        lastAutoFireTime = Date.now();
+    }
+});
+document.addEventListener('mouseup', () => isFiring = false);
+
+// 3. Frame Update
+function updatePlayer() {
+    if (window.gameOver) return;
+
+    // Movement
+    const moveDir = new THREE.Vector3(0, 0, 0);
+    if (keys['KeyW']) moveDir.z -= 1;
+    if (keys['KeyS']) moveDir.z += 1;
+    if (keys['KeyA']) moveDir.x -= 1;
+    if (keys['KeyD']) moveDir.x += 1;
+
+    if (moveDir.length() > 0) {
+        moveDir.normalize();
+        moveDir.applyEuler(new THREE.Euler(0, euler.y, 0));
+        camera.position.add(moveDir.multiplyScalar(0.15));
+    }
+
+    // Bullet Physics and Enemy Hit Detection
+    for (let i = bullets.length - 1; i >= 0; i--) {
+        const b = bullets[i];
+        b.position.add(b.userData.direction.clone().multiplyScalar(bulletSpeed));
+        b.userData.life--;
+
+        // Hit Detection with the SHARED enemy list
+        if (window.enemies) {
+            for (let enemy of window.enemies) {
+                if (b.position.distanceTo(enemy.position) < 1.2) {
+                    enemy.userData.health = 0; // enemy.js will handle removal
+                    b.userData.life = 0;
+                }
+            }
+        }
+
+        if (b.userData.life <= 0) {
+            scene.remove(b);
+            bullets.splice(i, 1);
+        }
+    }
+
+    // Enemy Collision (Game Over)
+    if (window.enemies) {
+        for (let enemy of window.enemies) {
+            if (camera.position.distanceTo(enemy.position) < 1.3) {
+                window.gameOver = true;
+                document.getElementById('killScreen').style.display = 'flex';
+                document.exitPointerLock();
+            }
+        }
+    }
+
+    // Ammo Collection
+    for (let i = ammoPickups.length - 1; i >= 0; i--) {
+        if (camera.position.distanceTo(ammoPickups[i].position) < 1.5) {
+            ammo += 5;
+            if (ammoCount) ammoCount.textContent = ammo;
+            scene.remove(ammoPickups[i]);
+            ammoPickups.splice(i, 1);
+        }
+    }
+
+    if (isFiring && Date.now() - lastAutoFireTime > AUTO_FIRE_DELAY_MS) {
+        shootBullet();
+        lastAutoFireTime = Date.now();
+    }
+}
+
+// Global function for enemy.js to drop ammo
+window.createAmmoDropAt = function(pos) {
+    const geo = new THREE.BoxGeometry(0.4, 0.4, 0.4);
+    const mat = new THREE.MeshBasicMaterial({ color: 0xFFD700 });
+    const drop = new THREE.Mesh(geo, mat);
+    drop.position.copy(pos);
+    drop.position.y = 0.5;
+    scene.add(drop);
+    ammoPickups.push(drop);
+};
+
+window.updatePlayer = updatePlayer;
