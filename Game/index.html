@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Wave Shooter Game</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #000;
+            overflow: hidden;
+        }
+
+        #gameContainer {
+            width: 100vw;
+            height: 100vh;
+        }
+
+        #hud {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: #00ff00;
+            font-size: 18px;
+            font-family: 'Courier New', monospace;
+            z-index: 10;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border: 2px solid #00ff00;
+            border-radius: 5px;
+        }
+
+        #score, #health, #wave, #ammo {
+            margin-bottom: 10px;
+        }
+
+        #gameOver {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.95);
+            color: #ff0000;
+            padding: 40px;
+            border: 3px solid #ff0000;
+            border-radius: 10px;
+            text-align: center;
+            z-index: 100;
+            display: none;
+            font-size: 32px;
+        }
+
+        #gameOver h1 {
+            margin-bottom: 20px;
+            font-size: 48px;
+        }
+
+        #gameOver p {
+            margin: 10px 0;
+            font-size: 24px;
+        }
+
+        #gameOver button {
+            margin-top: 20px;
+            padding: 15px 30px;
+            font-size: 20px;
+            background: #ff0000;
+            color: white;
+            border: none;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+
+        #gameOver button:hover {
+            background: #cc0000;
+        }
+
+        #waveNotification {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #ffff00;
+            font-size: 48px;
+            font-weight: bold;
+            z-index: 50;
+            text-shadow: 0 0 10px #ffff00;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        #crosshair {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 30px;
+            height: 30px;
+            border: 2px solid #00ff00;
+            border-radius: 50%;
+            pointer-events: none;
+        }
+
+        #crosshair::before {
+            content: '';
+            position: absolute;
+            width: 2px;
+            height: 10px;
+            background: #00ff00;
+            top: -12px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        #crosshair::after {
+            content: '';
+            position: absolute;
+            width: 2px;
+            height: 10px;
+            background: #00ff00;
+            bottom: -12px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .dot {
+            position: absolute;
+            width: 2px;
+            height: 2px;
+            background: #00ff00;
+        }
+
+        .dot:nth-child(3) {
+            left: -12px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 10px;
+            height: 2px;
+        }
+
+        .dot:nth-child(4) {
+            right: -12px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 10px;
+            height: 2px;
+        }
+
+        #instructions {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            color: #00ff00;
+            font-size: 14px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px;
+            border: 1px solid #00ff00;
+            border-radius: 5px;
+        }
+
+        .key {
+            background: #00ff00;
+            color: #000;
+            padding: 2px 6px;
+            border-radius: 3px;
+            margin: 0 3px;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer"></div>
+    <div id="hud">
+        <div id="score">Score: 0</div>
+        <div id="health">Health: 100/100</div>
+        <div id="wave">Wave: 1</div>
+        <div id="ammo">Ammo: ∞</div>
+    </div>
+    <div id="crosshair">
+        <div class="dot"></div>
+        <div class="dot"></div>
+        <div class="dot"></div>
+        <div class="dot"></div>
+    </div>
+    <div id="waveNotification">WAVE 1</div>
+    <div id="gameOver">
+        <h1>GAME OVER</h1>
+        <p id="finalScore">Final Score: 0</p>
+        <p id="wavesReached">Waves Reached: 0</p>
+        <button onclick="location.reload()">Restart Game</button>
+    </div>
+    <div id="instructions">
+        <div><span class="key">WASD</span> Move | <span class="key">Mouse</span> Look | <span class="key">Click</span> Shoot | <span class="key">SPACE</span> Jump</div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="game.js"></script>
+</body>
+</html>
